@@ -1,13 +1,14 @@
-const fs = require('fs');
-const path = require('path');
-const TAFFY = require('taffydb').taffy;
-const pluginsDir = path.join(__dirname, 'plugins');
+const fs = require("fs");
+const path = require("path");
+const TAFFY = require("taffydb").taffy;
+const pluginsDir = path.join(__dirname, "plugins");
 const plugins = {};
-const utils = require('./utils.js');
+const utils = require("./utils.js");
 const pluginFiles = fs.readdirSync(pluginsDir);
+const danfo = require("danfojs");
 console.clear();
-console.log('========= START =========\n');
-console.log('[INIT].Load plugin');
+console.log("========= START =========\n");
+console.log("[INIT].Load plugin");
 let strMess = [];
 pluginFiles.forEach((file) => {
   const pluginPath = path.join(pluginsDir, file);
@@ -20,11 +21,11 @@ pluginFiles.forEach((file) => {
   });
 });
 console.table(strMess);
-console.log('[INIT].Load pair');
-let filePair = require('./pair.json');
+console.log("[INIT].Load pair");
+let filePair = require("./pair.json");
 var pairList = TAFFY(filePair);
 console.table(pairList().get());
-console.log('==================\n');
+console.log("==================\n");
 pairList.settings({
   onDBChange: () => {
     //getall
@@ -34,7 +35,7 @@ pairList.settings({
       .map((item) => {
         listPair.push({ name: item.name });
       });
-    fs.writeFileSync('pair.json', JSON.stringify(listPair));
+    fs.writeFileSync("pair.json", JSON.stringify(listPair));
   },
 });
 //function util
@@ -48,13 +49,32 @@ function init() {
 async function handleSymbol(symbol) {
   console.log(symbol);
 
-  let ohlcv = await utils.fetchOHLCV(symbol, '15m');
+  let ohlcv = await utils.fetchOHLCV(symbol, "15m");
   let df = utils.get_list_close(ohlcv.ohlcv);
 
   for (const pluginName in plugins) {
     const plugin = plugins[pluginName];
     const pluginResult = plugin.analyze(df);
-    //pluginResult.df.tail().print();
+    pluginResult.df.print();
+    let str = danfo.toCSV(pluginResult.df);
+
+    fs.writeFileSync("./public/result.csv", str);
   }
 }
 init();
+
+//webserver
+
+const express = require("express");
+const app = express();
+const port = 3000;
+
+app.use(express.static("public"));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "/index.html"));
+});
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
+});
