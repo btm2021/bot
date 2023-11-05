@@ -24,6 +24,7 @@ console.table(strMess);
 console.log("[INIT].Load pair");
 let filePair = require("./pair.json");
 var pairList = TAFFY(filePair);
+var finalResult = new Map();
 console.table(pairList().get());
 console.log("==================\n");
 pairList.settings({
@@ -43,21 +44,20 @@ function init() {
   pairList()
     .get()
     .map((item) => {
-      handleSymbol(item.name);
+      handleSymbol(item.name, "15m");
     });
 }
-async function handleSymbol(symbol) {
+async function handleSymbol(symbol, timeframe = "15m") {
   console.log(symbol);
 
-  let ohlcv = await utils.fetchOHLCV(symbol, "15m");
+  let ohlcv = await utils.fetchOHLCV(symbol, timeframe);
   let df = utils.get_list_close(ohlcv.ohlcv);
 
   for (const pluginName in plugins) {
     const plugin = plugins[pluginName];
     const pluginResult = plugin.analyze(df);
-    pluginResult.df.print();
+    finalResult.set(symbol, pluginResult.df);
     let str = danfo.toCSV(pluginResult.df);
-
     fs.writeFileSync("./public/result.csv", str);
   }
 }
@@ -72,7 +72,9 @@ const port = 3000;
 app.use(express.static("public"));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "/index.html"));
+  console.log(finalResult.keys());
+  res.send(JSON.stringtify(finalResult["IMXUSDT"]));
+  //res.sendFile(path.join(__dirname, "/index.html"));
 });
 
 app.listen(port, () => {
